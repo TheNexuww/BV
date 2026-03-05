@@ -1,6 +1,6 @@
 # BV
 
-This repository contains a Discord bot built with Python and discord.py with logging functionality.
+This repository contains a Discord bot built with Python and discord.py with logging functionality.  (No external slash library required.)
 
 ## Getting Started
 

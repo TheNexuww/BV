@@ -5,46 +5,6 @@ from utils.config import get_logs_channel, set_logs_channel
 from datetime import datetime
 
 
-class LogsConfigModal(discord.ui.Modal, title="Configuration des Logs"):
-    """Modal pour configurer le channel des logs."""
-    
-    channel = discord.ui.TextInput(
-        label="Channel des logs",
-        placeholder="Sélectionne ou tape l'ID du channel",
-        required=True
-    )
-
-    async def on_submit(self, interaction: discord.Interaction):
-        try:
-            # Essayer de chercher le channel par ID
-            channel_id = int(self.channel.value)
-            channel = interaction.guild.get_channel(channel_id)
-            
-            if not channel:
-                await interaction.response.send_message(
-                    "❌ Channel introuvable. Vérifie l'ID du channel.", 
-                    ephemeral=True
-                )
-                return
-            
-            # Sauvegarder la configuration
-            set_logs_channel(interaction.guild_id, channel_id)
-            
-            embed = discord.Embed(
-                title="✅ Configuration sauvegardée",
-                description=f"Les logs seront envoyés dans {channel.mention}",
-                color=discord.Color.green(),
-                timestamp=datetime.now()
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            
-        except ValueError:
-            await interaction.response.send_message(
-                "❌ L'ID du channel n'est pas valide. Veuillez entrer un nombre entier.",
-                ephemeral=True
-            )
-
-
 class ChannelSelectMenu(discord.ui.View):
     """View avec un select menu pour choisir le channel."""
     
