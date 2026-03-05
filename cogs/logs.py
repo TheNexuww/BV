@@ -66,9 +66,9 @@ class LogsCog(commands.Cog):
             except discord.Forbidden:
                 pass
 
-    @app_commands.command(name="configlogs", description="Configure le channel pour les logs")
-    @app_commands.checks.has_permissions(administrator=True)
-    async def config_logs(self, interaction: discord.Interaction):
+    @app_commands.command(name="logsconfig", description="Configure le channel pour les logs")
+    @app_commands.checks.has_permissions(manage_messages=True)
+    async def logs_config(self, interaction: discord.Interaction):
         """Ouvrir l'interface de configuration des logs."""
         view = ChannelSelectMenu(interaction.guild)
         
@@ -161,13 +161,112 @@ class LogsCog(commands.Cog):
             
             await self.send_log(member.guild, embed)
 
-    @config_logs.error
-    async def config_logs_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+    @commands.Cog.listener()
+    async def on_message_delete(self, message: discord.Message):
+        """Enregistrer quand un message est supprimé."""
+        if message.author.bot:
+            return
+        
+        embed = discord.Embed(
+            title="🗑️ Message supprimé",
+            description=f"Message supprimé par {message.author.mention}",
+            color=discord.Color.red(),
+            timestamp=datetime.now()
+        )
+        embed.set_thumbnail(url=message.author.avatar.url if message.author.avatar else "")
+        embed.add_field(name="Auteur", value=f"{message.author.name}#{message.author.discriminator}", inline=False)
+        embed.add_field(name="Channel", value=message.channel.mention, inline=False)
+        embed.add_field(name="Contenu", value=message.content[:1024] if message.content else "*Aucun contenu*", inline=False)
+        
+        await self.send_log(message.guild, embed)
+
+    @commands.Cog.listener()
+    async def on_message_edit(self, before: discord.Message, after: discord.Message):
+        """Enregistrer quand un message est édité."""
+        if after.author.bot or before.content == after.content:
+            return
+        
+        embed = discord.Embed(
+            title="✏️ Message édité",
+            description=f"Message édité par {after.author.mention}",
+            color=discord.Color.yellow(),
+            timestamp=datetime.now()
+        )
+        embed.set_thumbnail(url=after.author.avatar.url if after.author.avatar else "")
+        embed.add_field(name="Auteur", value=f"{after.author.name}#{after.author.discriminator}", inline=False)
+        embed.add_field(name="Channel", value=after.channel.mention, inline=False)
+        embed.add_field(name="Avant", value=before.content[:512] if before.content else "*Aucun contenu*", inline=False)
+        embed.add_field(name="Après", value=after.content[:512] if after.content else "*Aucun contenu*", inline=False)
+        
+        await self.send_log(after.guild, embed)
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
+        """Enregistrer quand quelqu'un ajoute une réaction."""
+        guild = self.bot.get_guild(payload.guild_id)
+        if not guild:
+            return
+        
+        channel = guild.get_channel(payload.channel_id)
+        if not channel:
+            return
+        
+        try:
+            message = await channel.fetch_message(payload.message_id)
+        except discord.NotFound:
+            return
+        
+        user = self.bot.get_user(payload.user_id)
+        if user and user.bot:
+            return
+        
+        embed = discord.Embed(
+            title="👍 Réaction ajoutée",
+            description=f"{user.mention} a réagi avec {payload.emoji}",
+            color=discord.Color.blue(),
+            timestamp=datetime.now()
+        )
+        embed.set_thumbnail(url=user.avatar.url if user.avatar else "")
+        embed.add_field(name="Utilisateur", value=f"{user.name}#{user.discriminator}", inline=False)
+        embed.add_field(name="Channel", value=channel.mention, inline=False)
+        embed.add_field(name="Message", value=message.content[:256] if message.content else "*Pas de contenu*", inline=False)
+        
+        await self.send_log(guild, embed)
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
+        """Enregistrer quand quelqu'un retire une réaction."""
+        guild = self.bot.get_guild(payload.guild_id)
+        if not guild:
+            return
+        
+        user = self.bot.get_user(payload.user_id)
+        if user and user.bot:
+            return
+        
+        channel = guild.get_channel(payload.channel_id)
+        if not channel:
+            return
+        
+        embed = discord.Embed(
+            title="👎 Réaction retirée",
+            description=f"{user.mention} a retiré sa réaction {payload.emoji}",
+            color=discord.Color.purple(),
+            timestamp=datetime.now()
+        )
+        embed.set_thumbnail(url=user.avatar.url if user.avatar else "")
+        embed.add_field(name="Utilisateur", value=f"{user.name}#{user.discriminator}", inline=False)
+        embed.add_field(name="Channel", value=channel.mention, inline=False)
+        
+        await self.send_log(guild, embed)
+
+    @logs_config.error
+    async def logs_config_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
         """Gérer les erreurs de permission."""
         if isinstance(error, app_commands.MissingPermissions):
             embed = discord.Embed(
                 title="❌ Permission refusée",
-                description="Tu dois être administrateur pour utiliser cette commande.",
+                description="Tu dois être modérateur pour utiliser cette commande.",
                 color=discord.Color.red()
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)

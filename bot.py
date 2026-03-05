@@ -15,7 +15,7 @@ bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
 async def load_cogs():
     """Load all cogs from the cogs folder."""
     for filename in os.listdir("cogs"):
-        if filename.endswith(".py"):
+        if filename.endswith(".py") and filename != "__init__.py":
             await bot.load_extension(f"cogs.{filename[:-3]}")
             print(f"Cog loaded: {filename[:-3]}")
 
